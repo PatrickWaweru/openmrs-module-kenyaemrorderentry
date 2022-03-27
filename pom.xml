@@ -72,6 +72,11 @@
                 <groupId>org.openmrs</groupId>
                 <artifactId>openmrs</artifactId>
                 <version>${openMRSVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openmrs</groupId>
+                <artifactId>openmrs</artifactId>
+                <version>${openMRSVersion}</version>
                 <type>pom</type>
                 <scope>provided</scope>
             </dependency>

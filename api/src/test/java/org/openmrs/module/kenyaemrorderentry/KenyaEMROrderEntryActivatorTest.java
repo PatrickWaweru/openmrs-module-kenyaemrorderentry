@@ -9,6 +9,7 @@ import static org.junit.Assert.assertTrue;
 public class KenyaEMROrderEntryActivatorTest extends BaseModuleContextSensitiveTest {
 
     @Test
+    @Ignore("Unignore if you want to make the DAO persistable")
     public void testContext() throws Exception {
         assertTrue(true);
     }
