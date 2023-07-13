@@ -60,6 +60,15 @@ tr:nth-child(even) {background-color: #f2f2f2;}
 .sampleTypeColumn {
     width: 100px;
 }
+.selectGeneralElement {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+.selectColumn {
+    width: 40px;
+    padding-left: 5px;
+}
 </style>
 
 <div class="ke-page-sidebar">
@@ -181,19 +190,23 @@ tr:nth-child(even) {background-color: #f2f2f2;}
 
             <table class="simple-table" width="90%">
                 <tr>
+                    <th class="selectColumn"><input type="checkbox" class="selectGeneralElement" id="selectAll" value="selectAll"></th>
                     <th class="nameColumn">Patient Name</th>
                     <% if (manifest.manifestType == 2) { %>
-                    <th class="cccNumberColumn">CCC Number</th>
+                        <th class="cccNumberColumn">CCC Number</th>
                     <% } else { %>
-                    <th class="cccNumberColumn">HEI Number</th>
+                        <th class="cccNumberColumn">HEI Number</th>
                     <% } %>
                     <th class="dateRequestColumn">Date requested</th>
-                    <th class="actionColumn"></th>
+                    <th class="actionColumn">
+                        <input type="button" id="addSelectedOrders" value="Add Selected Orders" disabled/>
+                    </th>
                     <th></th>
                 </tr>
                 <% if (manifest.manifestType == 2) { %>
                         <% eligibleVlOrders.each { o -> %>
                             <tr>
+                                <td class="selectColumn"><input type="checkbox" class="selectGeneralElement" value=${o.id}></td>
                                 <td class="nameColumn"> <a href="${ ui.pageLink("kenyaemr", "clinician/clinicianViewPatient", [ patientId: o.patient.id ]) }"> ${o.patient.givenName} ${o.patient.familyName} ${o.patient.middleName ?: ""} </a></td>
                                 <td class="cccNumberColumn">${o.patient.getPatientIdentifier(cccNumberType)}</td>
                                 <td class="dateRequestColumn">${kenyaui.formatDate(o.dateActivated)}</td>
@@ -207,6 +220,7 @@ tr:nth-child(even) {background-color: #f2f2f2;}
                 <% if (manifest.manifestType == 1) { %>
                     <% eligibleEidOrders.each { o -> %>
                     <tr>
+                        <td class="selectColumn"><input type="checkbox" class="selectGeneralElement" value=${o.id}></td>
                         <td class="nameColumn">${o.patient.givenName} ${o.patient.familyName} </td>
                         <td class="cccNumberColumn">${o.patient.getPatientIdentifier(heiNumberType)}</td>
                         <td class="dateRequestColumn">${kenyaui.formatDate(o.dateActivated)}</td>
@@ -223,7 +237,7 @@ tr:nth-child(even) {background-color: #f2f2f2;}
         <% } %>
     </div>
 
-    <!-- Modal date for vl results -->
+    <!-- Modal data popup for adding single order to manifest -->
     <div class="modal fade" id="updateSampleDetails" tabindex="-1" role="dialog" aria-labelledby="dateModalCenterTitle" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
@@ -269,6 +283,50 @@ tr:nth-child(even) {background-color: #f2f2f2;}
         </div>
     </div>
 
+    <!-- Modal data popup for adding multiple orders to manifest -->
+    <div class="modal fade" id="addMultipleOrdersDialog" tabindex="-1" role="dialog" aria-labelledby="dateModalCenterTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header modal-header-primary">
+                    <h5 class="modal-title" id="dateVlModalCenterTitle">Add Multiple Orders To Manifest</h5>
+                    <button type="button" class="close closeMultipleOrdersDialog" data-dismiss="modal"> &times; </button>
+                </div>
+                <div class="modal-body">
+                    <input hidden="text" id="selectedOrderIds"/>
+                    <span style="color: firebrick" id="msgBox"></span>
+                    <table>
+                        <tr>
+                            <td>Sample type *</td>
+                            <td>
+                                <select id="samplesType">
+                                    <% if(manifest.manifestType == 2) { %>
+                                        <option value="Frozen plasma">Frozen plasma</option>
+                                        <option value="Whole Blood">Whole Blood</option>
+                                    <% } else if(manifest.manifestType == 1) {%>
+                                        <option value="DBS">DBS</option>
+                                    <% } %>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Sample collection date *</td>
+                            <td>${ ui.includeFragment("kenyaui", "field/java.util.Date", [ id: "dateSamplesCollected", formFieldName: "dateSampleCollected"]) }</td>
+                        </tr>
+                        <tr>
+                            <td>Sample separation/centrifugation date *</td>
+                            <td>${ ui.includeFragment("kenyaui", "field/java.util.Date", [ id: "dateSamplesSeparated", formFieldName: "dateSampleSeparated"]) }</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="close closeMultipleOrdersDialog" data-dismiss="modal">Cancel</button>
+                    <button type="button" id="addMultipleSamples">
+                        <img src="${ ui.resourceLink("kenyaui", "images/glyphs/ok.png") }" /> Add Samples</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="removeManifestOrder" tabindex="-1" role="dialog" aria-labelledby="" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
@@ -296,6 +354,17 @@ tr:nth-child(even) {background-color: #f2f2f2;}
 </div>
 
 <script type="text/javascript">
+    var selectedOrders = [];
+    var manifestType = ${ manifest.manifestType };
+    var generalOrderRecords = [];
+
+    if(manifestType == 1) {
+        // EID manifest
+        generalOrderRecords = ${ EIDOrders };
+    } else if(manifestType == 2) {
+        // VL manifest
+        generalOrderRecords = ${ VLOrders };
+    }
 
     //On ready
     jq = jQuery;
@@ -351,7 +420,7 @@ tr:nth-child(even) {background-color: #f2f2f2;}
             addAllOrders();
         });
 
-        // a function that adds an order to a manifest
+        // Button action to add an order to a manifest
         jq('#eligibleList').on('click','.addOrderToManifest',function () {
             // clear previously entered values
             jq(".modal-body #selectedOrderId").val("");
@@ -366,6 +435,17 @@ tr:nth-child(even) {background-color: #f2f2f2;}
             jq('#updateSampleDetails').modal('show');
         });
 
+        // Button action to add multiple orders to a manifest
+        jq('#addSelectedOrders').click(function () {
+            // clear previously entered values
+            jq(".modal-body #selectedOrderIds").val("");
+            jq(".modal-body #dateSamplesCollected").val("");
+            jq(".modal-body #dateSamplesSeparated").val("");
+            jq(".modal-body #samplesType").val("");
+
+            jq('#addMultipleOrdersDialog').modal('show');
+        });
+
         jq('#addSample').click(function () {
 
             var selOrder = jq(".modal-body #selectedOrderId").val();
@@ -375,6 +455,52 @@ tr:nth-child(even) {background-color: #f2f2f2;}
 
             var dCollected = new Date(dateSampleCollected);
             var dSeparated = new Date(dateSampleSeparated);
+            var dToday = new Date();
+
+            if ( dateSampleCollected == "" || dateSampleSeparated == "" || sampleType == "" || sampleType == null || !sampleType ) {
+                jq('.modal-body #msgBox').text('Please fill all fields');
+            }else if (dateSampleCollected > dToday){
+                jq('.modal-body #msgBox').text('Sample collection date cannot be in future');
+            }else if (dSeparated > dToday){
+                jq('.modal-body #msgBox').text('Sample separation date cannot be in future');
+            }else if (dCollected > dSeparated ){
+                jq('.modal-body #msgBox').text('Sample separation date cannot be before sample collection');
+            }
+            else {
+                jq.getJSON('${ ui.actionLink("kenyaemrorderentry", "patientdashboard/generalLabOrders", "addOrderToManifest") }',{
+                    'manifestId': ${ manifest.id },
+                    'orderId': selOrder,
+                    'sampleType': sampleType,
+                    'dateSampleCollected': dateSampleCollected,
+                    'dateSampleSeparated': dateSampleSeparated
+                })
+                    .success(function (data) {
+                        if (data.status == 'successful') {
+                            jq('#updateSampleDetails').modal('toggle');
+                            kenyaui.openAlertDialog({ heading: 'Alert', message: 'Sample successfully added to the manifest' })
+                            setTimeout(function () {
+                                window.location.reload();
+                            }, 2000);
+                        } else {
+                            jq('.modal-body #msgBox').text('Could not add to the manifest! ' + data.cause);
+
+                        }
+                    })
+                    .error(function (xhr, status, err) {
+                        jq('.modal-body #msgBox').text('The system encountered a problem while adding the sample. Please try again');
+                    })
+            }
+        });
+
+        jq('#addMultipleSamples').click(function () {
+
+            var selOrders = jq(".modal-body #selectedOrderIds").val();
+            var dateSamplesCollected = jq(".modal-body #dateSamplesCollected").val();
+            var dateSamplesSeparated = jq(".modal-body #dateSamplesSeparated").val();
+            var samplesType = jq(".modal-body #samplesType").val();
+
+            var dCollected = new Date(dateSamplesCollected);
+            var dSeparated = new Date(dateSamplesSeparated);
             var dToday = new Date();
 
             if ( dateSampleCollected == "" || dateSampleSeparated == "" || sampleType == "" || sampleType == null || !sampleType ) {
@@ -459,6 +585,61 @@ tr:nth-child(even) {background-color: #f2f2f2;}
             jq(".modal-body #msgBox").text("");
 
         });
+
+        jq('.closeMultipleOrdersDialog').click(function () {
+
+            jq(".modal-body #selectedOrderIds").val("");
+            jq(".modal-body #dateSamplesCollected").val("");
+            jq(".modal-body #dateSamplesCollected_date").val("");
+            jq(".modal-body #dateSamplesSeparated").val("");
+            jq(".modal-body #dateSamplesSeparated_date").val("");
+            jq(".modal-body #samplesType").val("");
+            jq(".modal-body #multipleMsgBox").text("");
+
+        });
+
+        // On selecting the select all checkbox
+        jq("#selectAll").change(function() {
+            let len = jq('.selectGeneralElement:checked').length;
+            if (len > 0) {
+                jq('#addSelectedOrders').attr('disabled', false);
+            } else {
+                jq('#addSelectedOrders').attr('disabled', true);
+            }
+        });
+
+        // On selecting an order checkbox
+        jq(document).on('click','.selectGeneralElement',function () {
+            var orderId = jq(this).val();
+            if (jq(this).is(":checked")) {
+                selectedOrders.push(orderId);
+            }
+            else {
+                 var elemIndex = selectedOrders.indexOf(orderId);
+                 if (elemIndex > -1) {
+                    selectedOrders.splice(elemIndex, 1);
+                 }
+                 jq('#selectAll').prop('checked', false);
+             }
+        });
+
+        // handle select all orders
+        jq(document).on('click','#selectAll',function () {
+            //clear selection list
+            selectedOrders = [];
+            if(jq(this).is(':checked')) {
+                jq('.selectGeneralElement').prop('checked', true);
+                // populate the list with all elements
+                for (var i = 0; i < generalOrderRecords.length; i++) {
+                    let id = generalOrderRecords[i].orderId;
+                    selectedOrders.push(id);
+                }
+            }
+            else {
+                jq('.selectGeneralElement').prop('checked', false);
+            }
+        });
+
     });
 
 </script>
