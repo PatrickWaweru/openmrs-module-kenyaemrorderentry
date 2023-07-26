@@ -140,6 +140,7 @@ tr:nth-child(even) {background-color: #f2f2f2;}
 
             <table class="simple-table" width="90%">
                 <tr>
+                    <th class="selectColumn"><input type="checkbox" class="selectManifestElement" id="selectManifestAll" value="selectManifestAll"></th>
                     <th class="nameColumn">Patient Name</th>
                     <% if (manifest.manifestType == 2) { %>
                         <th class="cccNumberColumn">CCC Number</th>
@@ -152,33 +153,38 @@ tr:nth-child(even) {background-color: #f2f2f2;}
                     <th class="sampleStatusColumn">Status</th>
                     <th class="dateRequestColumn">Result</th>
                     <th class="dateRequestColumn">Result Date</th>
-                    <th class="actionColumn"></th>
+                    <th class="actionColumn">
+                        <% if (o.status != 'Complete') { %>
+                            <input type="button" id="removeSelectedOrders" value="Remove Selected Samples" disabled/>
+                        <% } %>
+                    </th>
                 </tr>
                 <% manifestOrders.each { o -> %>
-                <tr>
-                <td class="nameColumn"><a href="${ ui.pageLink("kenyaemr", "chart/chartViewPatient", [ patientId: o.order.patient.id ]) }">${o.order.patient.givenName} ${o.order.patient.familyName} ${o.order.patient.middleName ?: ""}</a></td>
-                <% if (manifest.manifestType == 2) { %>
-                     <td class="cccNumberColumn">${o.order.patient.getPatientIdentifier(cccNumberType)}</td>
-                <% } else { %>
-                <td class="cccNumberColumn">${o.order.patient.getPatientIdentifier(heiNumberType)}</td>
-                <% } %>
-                    <td class="batchNumberColumn">${o.batchNumber != null ? o.batchNumber : ""}</td>
-                    <td class="sampleTypeColumn">${o.sampleType}</td>
-                    <td class="dateRequestColumn">${kenyaui.formatDate(o.order.dateActivated)}</td>
-                    <td class="sampleStatusColumn">${o.status}</td>
-                    <td class="dateRequestColumn">${o.result ?: "Not ready"}</td>
-                    <td class="dateRequestColumn">${o.resultDate != null ? kenyaui.formatDate(o.resultDate) : ""}</td>
-                    <td class="actionColumn">
-                        <% if (o.status != 'Complete') { %>
-                            <button class="removeManifestOrder" style="background-color: cadetblue; color: white" value="od_${o.id}" data-target="#removeManifestOrder">Remove</button>
+                    <tr>
+                        <td class="selectManifestColumn"><input type="checkbox" class="selectManifestElement" value="${o.id}"></td>
+                        <td class="nameColumn"><a href="${ ui.pageLink("kenyaemr", "chart/chartViewPatient", [ patientId: o.order.patient.id ]) }">${o.order.patient.givenName} ${o.order.patient.familyName} ${o.order.patient.middleName ?: ""}</a></td>
+                        <% if (manifest.manifestType == 2) { %>
+                            <td class="cccNumberColumn">${o.order.patient.getPatientIdentifier(cccNumberType)}</td>
+                        <% } else { %>
+                            <td class="cccNumberColumn">${o.order.patient.getPatientIdentifier(heiNumberType)}</td>
                         <% } %>
-                        <a href="${ ui.pageLink("kenyaemrorderentry","manifest/printSpecimenLabel",[manifestOrder : o.id]) }"   target="_blank">
-                            <button style="background-color: cadetblue; color: white">
-                                Print Label
-                            </button>
-                        </a>
-                    </td>
-                </tr>
+                        <td class="batchNumberColumn">${o.batchNumber != null ? o.batchNumber : ""}</td>
+                        <td class="sampleTypeColumn">${o.sampleType}</td>
+                        <td class="dateRequestColumn">${kenyaui.formatDate(o.order.dateActivated)}</td>
+                        <td class="sampleStatusColumn">${o.status}</td>
+                        <td class="dateRequestColumn">${o.result ?: "Not ready"}</td>
+                        <td class="dateRequestColumn">${o.resultDate != null ? kenyaui.formatDate(o.resultDate) : ""}</td>
+                        <td class="actionColumn">
+                            <% if (o.status != 'Complete') { %>
+                                <button class="removeManifestOrder" style="background-color: cadetblue; color: white" value="od_${o.id}" data-target="#removeManifestOrder">Remove</button>
+                            <% } %>
+                            <a href="${ ui.pageLink("kenyaemrorderentry","manifest/printSpecimenLabel",[manifestOrder : o.id]) }"   target="_blank">
+                                <button style="background-color: cadetblue; color: white">
+                                    Print Label
+                                </button>
+                            </a>
+                        </td>
+                    </tr>
                 <% } %>
 
             </table>
@@ -199,7 +205,7 @@ tr:nth-child(even) {background-color: #f2f2f2;}
                     <% } %>
                     <th class="dateRequestColumn">Date requested</th>
                     <th class="actionColumn">
-                        <input type="button" id="addSelectedOrders" value="Add Selected Orders" disabled/>
+                        <input type="button" id="addSelectedOrders" value="Add Selected Samples" disabled/>
                     </th>
                     <th></th>
                 </tr>
@@ -293,7 +299,7 @@ tr:nth-child(even) {background-color: #f2f2f2;}
                 </div>
                 <div class="modal-body">
                     <input hidden="text" id="selectedOrderIds"/>
-                    <span style="color: firebrick" id="msgBox"></span>
+                    <span style="color: firebrick" id="multipleMsgBox"></span>
                     <table>
                         <tr>
                             <td>Sample type *</td>
@@ -327,6 +333,7 @@ tr:nth-child(even) {background-color: #f2f2f2;}
         </div>
     </div>
 
+    <!-- Modal data popup for removing an order from manifest -->
     <div class="modal fade" id="removeManifestOrder" tabindex="-1" role="dialog" aria-labelledby="" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
@@ -351,12 +358,36 @@ tr:nth-child(even) {background-color: #f2f2f2;}
         </div>
     </div>
 
+    <!-- Modal dialog popup for removing multiple orders from manifest -->
+    <div class="modal fade" id="removeMultipleManifestOrdersDialog" tabindex="-1" role="dialog" aria-labelledby="" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header modal-header-primary">
+                    <h5 class="modal-title">Remove multiple samples from manifest</h5>
+                    <button type="button" class="close closeDialog" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input hidden="text" id="selectedManifestOrderId"/>
+                    <span style="color: firebrick" id="alertBox"></span>
+                    <h5 class="modal-title">Are you sure you want to remove multiple samples from the manifest?</h5>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="close closeDialog" data-dismiss="modal">Cancel</button>
+                    <button type="button" id="removeMultipleManifestSamples">
+                        <img src="${ ui.resourceLink("kenyaui", "images/glyphs/ok.png") }" /> Yes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script type="text/javascript">
     var selectedOrders = [];
+    var selectedManifestOrders = [];
     var manifestType = ${ manifest.manifestType };
     var generalOrderRecords = [];
+    var manifestOrderRecords = ${ allManifestOrders };
 
     if(manifestType == 1) {
         // EID manifest
@@ -443,7 +474,11 @@ tr:nth-child(even) {background-color: #f2f2f2;}
             jq(".modal-body #dateSamplesSeparated").val("");
             jq(".modal-body #samplesType").val("");
 
-            jq('#addMultipleOrdersDialog').modal('show');
+            // ensure there are selected orders before showing dialog
+            if(selectedOrders.length > 0) {
+                console.log("Selected orders are: " + selectedOrders.length);
+                jq('#addMultipleOrdersDialog').modal('show');
+            }
         });
 
         jq('#addSample').click(function () {
@@ -492,7 +527,7 @@ tr:nth-child(even) {background-color: #f2f2f2;}
             }
         });
 
-        jq('#addMultipleSamples').click(function () {
+        jq('#addMultipleSamples').click( async function () {
 
             var selOrders = jq(".modal-body #selectedOrderIds").val();
             var dateSamplesCollected = jq(".modal-body #dateSamplesCollected").val();
@@ -503,39 +538,54 @@ tr:nth-child(even) {background-color: #f2f2f2;}
             var dSeparated = new Date(dateSamplesSeparated);
             var dToday = new Date();
 
-            if ( dateSampleCollected == "" || dateSampleSeparated == "" || sampleType == "" || sampleType == null || !sampleType ) {
-                jq('.modal-body #msgBox').text('Please fill all fields');
-            }else if (dateSampleCollected > dToday){
-                jq('.modal-body #msgBox').text('Sample collection date cannot be in future');
-            }else if (dSeparated > dToday){
-                jq('.modal-body #msgBox').text('Sample separation date cannot be in future');
-            }else if (dCollected > dSeparated ){
-                jq('.modal-body #msgBox').text('Sample separation date cannot be before sample collection');
-            }
-            else {
-                jq.getJSON('${ ui.actionLink("kenyaemrorderentry", "patientdashboard/generalLabOrders", "addOrderToManifest") }',{
-                    'manifestId': ${ manifest.id },
-                    'orderId': selOrder,
-                    'sampleType': sampleType,
-                    'dateSampleCollected': dateSampleCollected,
-                    'dateSampleSeparated': dateSampleSeparated
-                })
-                    .success(function (data) {
-                        if (data.status == 'successful') {
-                            jq('#updateSampleDetails').modal('toggle');
-                            kenyaui.openAlertDialog({ heading: 'Alert', message: 'Sample successfully added to the manifest' })
-                            setTimeout(function () {
-                                window.location.reload();
-                            }, 2000);
-                        } else {
-                            jq('.modal-body #msgBox').text('Could not add to the manifest! ' + data.cause);
+            var multipleAddSuccess = 0;
+            var multipleAddErrors = 0;
 
-                        }
+            if ( dateSampleCollected == "" || dateSampleSeparated == "" || sampleType == "" || sampleType == null || !sampleType ) {
+                jq('.modal-body #multipleMsgBox').text('Please fill all fields');
+            } else if ( dateSampleCollected > dToday) {
+                jq('.modal-body #multipleMsgBox').text('Sample collection date cannot be in future');
+            } else if ( dSeparated > dToday) {
+                jq('.modal-body #multipleMsgBox').text('Sample separation date cannot be in future');
+            } else if ( dCollected > dSeparated ) {
+                jq('.modal-body #multipleMsgBox').text('Sample separation date cannot be before sample collection');
+            } else {
+                // Loop through the selected orders
+                for (var i = 0; i < selectedOrders.length; i++) {
+                    let id = selectedOrders[i];
+                    console.log("Adding sample id: " + id);
+                    jq.getJSON('${ ui.actionLink("kenyaemrorderentry", "patientdashboard/generalLabOrders", "addOrderToManifest") }',{
+                        'manifestId': ${ manifest.id },
+                        'orderId': id,
+                        'sampleType': samplesType,
+                        'dateSampleCollected': dateSamplesCollected,
+                        'dateSampleSeparated': dateSamplesSeparated
                     })
-                    .error(function (xhr, status, err) {
-                        jq('.modal-body #msgBox').text('The system encountered a problem while adding the sample. Please try again');
-                    })
+                        .success(function (data) {
+                            if (data.status == 'successful') {
+                                console.log("Success adding sample id: " + id);
+                                multipleAddSuccess++;
+                            } else {
+                                console.log("Failed adding sample id: " + id);
+                                multipleAddErrors++;
+                            }
+                        })
+                        .error(function (xhr, status, err) {
+                            console.log("Failed adding sample id: " + id);
+                            multipleAddErrors++;
+                        })
+                    // Wait for a second
+                    await new Promise(r => setTimeout(r, 1000));
+                }
             }
+
+            jq('#addMultipleOrdersDialog').modal('toggle');
+            var userMsg = "Samples successfully added to the manifest are: " + multipleAddSuccess + ". Samples that failed are: " + multipleAddErrors;
+            console.log(userMsg);
+            kenyaui.openAlertDialog({ heading: 'Alert', message: userMsg })
+            setTimeout(function () {
+                window.location.reload();
+            }, 2000);
         });
 
         // a function that removes an order from a manifest
@@ -608,6 +658,16 @@ tr:nth-child(even) {background-color: #f2f2f2;}
             }
         });
 
+        // On selecting an order
+        jq(".selectGeneralElement").change(function() {
+            let len = jq('.selectGeneralElement:checked').length;
+            if (len > 0) {
+                jq('#addSelectedOrders').attr('disabled', false);
+            } else {
+                jq('#addSelectedOrders').attr('disabled', true);
+            }
+        });
+
         // On selecting an order checkbox
         jq(document).on('click','.selectGeneralElement',function () {
             var orderId = jq(this).val();
@@ -638,6 +698,107 @@ tr:nth-child(even) {background-color: #f2f2f2;}
             else {
                 jq('.selectGeneralElement').prop('checked', false);
             }
+        });
+
+        // Samples in manifest section
+
+        // On selecting the select all manifest orders checkbox
+        jq("#selectManifestAll").change(function() {
+            let len = jq('.selectManifestElement:checked').length;
+            if (len > 0) {
+                jq('#removeSelectedOrders').attr('disabled', false);
+            } else {
+                jq('#removeSelectedOrders').attr('disabled', true);
+            }
+        });
+
+        // On selecting a manifest order
+        jq(".selectManifestElement").change(function() {
+            let len = jq('.selectManifestElement:checked').length;
+            if (len > 0) {
+                jq('#removeSelectedOrders').attr('disabled', false);
+            } else {
+                jq('#removeSelectedOrders').attr('disabled', true);
+            }
+        });
+
+        // On selecting a manifest order checkbox
+        jq(document).on('click','.selectManifestElement',function () {
+            var orderId = jq(this).val();
+            if (jq(this).is(":checked")) {
+                selectedManifestOrders.push(orderId);
+            }
+            else {
+                 var elemIndex = selectedManifestOrders.indexOf(orderId);
+                 if (elemIndex > -1) {
+                    selectedManifestOrders.splice(elemIndex, 1);
+                 }
+                 jq('#selectManifestAll').prop('checked', false);
+             }
+        });
+
+        // handle select all manifest orders
+        jq(document).on('click','#selectManifestAll',function () {
+            //clear selection list
+            selectedManifestOrders = [];
+            if(jq(this).is(':checked')) {
+                jq('.selectManifestElement').prop('checked', true);
+                // populate the list with all manifest orders
+                for (var i = 0; i < manifestOrderRecords.length; i++) {
+                    let id = manifestOrderRecords[i].orderId;
+                    selectedManifestOrders.push(id);
+                }
+            }
+            else {
+                jq('.selectManifestElement').prop('checked', false);
+            }
+        });
+
+        // Button action to remove multiple orders from a manifest
+        jq('#removeSelectedOrders').click(function () {
+            // ensure there are selected manifest orders before showing dialog
+            if(selectedManifestOrders.length > 0) {
+                console.log("Selected manifest orders are: " + selectedManifestOrders.length);
+                jq('#removeMultipleManifestOrdersDialog').modal('show');
+            }
+        });
+
+        jq('#removeMultipleManifestSamples').click( async function () {
+            var multipleRemoveSuccess = 0;
+            var multipleRemoveErrors = 0;
+
+            // Loop through the selected manifest orders
+            for (var i = 0; i < selectedManifestOrders.length; i++) {
+                let id = selectedManifestOrders[i];
+                console.log("Removing sample id: " + id);
+                jq.getJSON('${ ui.actionLink("kenyaemrorderentry", "patientdashboard/generalLabOrders", "removeManifestOrder") }',{
+                    'manifestOrderId': id
+                })
+                    .success(function (data) {
+                        if (data.status == 'successful') {
+                            console.log("Success removing sample id: " + id);
+                            multipleRemoveSuccess++;
+                        } else {
+                            console.log("Failed removing sample id: " + id);
+                            multipleRemoveErrors++;
+                        }
+                    })
+                    .error(function (xhr, status, err) {
+                        console.log("Failed removing sample id: " + id);
+                        multipleRemoveErrors++;
+                    })
+                // Wait for a second
+                await new Promise(r => setTimeout(r, 1000));
+            }
+
+            jq('#removeMultipleManifestOrdersDialog').modal('toggle');
+            var userMsg = "Samples successfully removed from the manifest are: " + multipleRemoveSuccess + ". Samples that failed are: " + multipleRemoveErrors;
+            console.log(userMsg);
+            kenyaui.openAlertDialog({ heading: 'Alert', message: userMsg })
+            setTimeout(function () {
+                window.location.reload();
+            }, 2000);
+
         });
 
     });

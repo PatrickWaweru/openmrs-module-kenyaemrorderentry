@@ -45,4 +45,10 @@ public class ModuleConstants {
     public static final Integer DEFAULT_APHL_LAB_CODE = 7;
     public static final String GP_SSL_VERIFICATION_ENABLED = "kemrorder.ssl_verification_enabled";
 
+    public static final String GP_LOCAL_RESULT_ENDPOINT = "local.viral_load_result_end_point";
+
+    public static final String GP_SCHEDULER_USERNAME = "scheduler.username";
+
+    public static final String GP_SCHEDULER_PASSWORD = "scheduler.password";
+
 }
