@@ -312,8 +312,7 @@ public class LimsSystemWebRequest {
                         BufferedReader rd = new BufferedReader(new InputStreamReader(entity.getContent()));
 
                         try {
-                            jsonString = rd.lines().collect(Collectors.joining()).toString();
-                            System.out.println("Lims Lab Results Get: Request JSON -> " + jsonString);
+                            jsonString = rd.lines().collect(Collectors.joining()).toString();                         
                         } finally {
                             rd.close();
                         }
